@@ -25,3 +25,33 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Create a user with validated data"""
         return User.objects.create_user(**validated_data)
+
+
+class LoginSerializer(serializers.ModelSerializer):
+    email = serializers.CharField(max_length=150, min_length=3)
+    password = serializers.CharField(
+        max_length=255, min_length=6, write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['email', 'password', 'first_name', 'last_name', 'tokens']
+        read_only_fields = ['first_name', 'last_name', 'tokens']
+
+    def validate(self, attrs):
+        """Login a user with email and password and return the refresh and access token for the user"""
+        email = attrs.get('email', '')
+        password = attrs.get('password', '')
+
+        user = auth.authenticate(email=email, password=password)
+
+        if not user:
+            raise AuthenticationFailed('Invalid credentials, try again')
+        if not user.is_active:
+            raise AuthenticationFailed('Account inactive, contact admin')
+
+        return {
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'tokens': user.tokens()
+        }
